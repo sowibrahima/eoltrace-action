@@ -1,0 +1,115 @@
+name: EOLTrace Scan
+description: >-
+  Scan a repository locally in your GitHub Actions runner with the native
+  EOLTrace CLI without uploading source code, and optionally submit the
+  privacy-validated metadata manifest to a hosted EOLTrace server.
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  path:
+    description: Repository directory to scan.
+    required: false
+    default: "."
+  mode:
+    description: >-
+      Execution mode: "local" (offline scan only, default) or "ci"
+      (scan, upload canonical manifest, wait for hosted policy evaluation).
+    required: false
+    default: "local"
+  repository:
+    description: >-
+      Hosted EOLTrace repository ID (required in "ci" mode unless bound locally).
+    required: false
+    default: ""
+  server:
+    description: >-
+      Hosted EOLTrace server origin (e.g. https://api.example.com). Passed via
+      EOLTRACE_SERVER environment variable; required in "ci" mode.
+    required: false
+    default: ""
+  ci-mode:
+    description: >-
+      Policy mode for "ci" execution: "report" or "gate".
+    required: false
+    default: "report"
+  fail-on-partial:
+    description: Fail when the scan coverage state is partial.
+    required: false
+    default: "false"
+  manifest-path:
+    description: >-
+      Path to write the inspectable eoltrace.scan-manifest/v1 JSON artifact.
+      Defaults to runner.temp so it stays outside the scanned repository.
+    required: false
+    default: ""
+  json-path:
+    description: Path to write the CLI JSON result envelope.
+    required: false
+    default: ""
+  sarif-path:
+    description: Optional SARIF output path (used in "ci" mode).
+    required: false
+    default: ""
+  cli-version:
+    description: Release tag to download (e.g. cli-v1.1.0).
+    required: false
+    default: "cli-v1.1.0"
+  cli-binary:
+    description: Optional path to a pre-installed eoltrace binary.
+    required: false
+    default: ""
+  release-repo:
+    description: GitHub repository (owner/repo) hosting cli-v* release assets.
+    required: false
+    default: "sowibrahima/eoltrace-action"
+  threads:
+    description: Scanner worker threads (1-64).
+    required: false
+    default: "4"
+
+outputs:
+  manifest-path:
+    description: Path to the canonical eoltrace.scan-manifest/v1 file.
+    value: ${{ steps.run.outputs.manifest-path }}
+  json-path:
+    description: Path to the CLI JSON result envelope.
+    value: ${{ steps.run.outputs.json-path }}
+  sarif-path:
+    description: Path to generated SARIF output (empty unless produced in ci mode).
+    value: ${{ steps.run.outputs.sarif-path }}
+  coverage-state:
+    description: Local scan coverage state (complete or partial).
+    value: ${{ steps.run.outputs.coverage-state }}
+  observation-count:
+    description: Number of observations recorded in the manifest.
+    value: ${{ steps.run.outputs.observation-count }}
+  dependency-count:
+    description: Number of inventory dependencies recorded in the manifest.
+    value: ${{ steps.run.outputs.dependency-count }}
+  scan-id:
+    description: Hosted scan ID (populated in ci mode).
+    value: ${{ steps.run.outputs.scan-id }}
+
+runs:
+  using: composite
+  steps:
+    - id: run
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_MODE: ${{ inputs.mode }}
+        INPUT_REPOSITORY: ${{ inputs.repository }}
+        INPUT_SERVER: ${{ inputs.server }}
+        INPUT_CI_MODE: ${{ inputs.ci-mode }}
+        INPUT_FAIL_ON_PARTIAL: ${{ inputs.fail-on-partial }}
+        INPUT_MANIFEST_PATH: ${{ inputs.manifest-path }}
+        INPUT_JSON_PATH: ${{ inputs.json-path }}
+        INPUT_SARIF_PATH: ${{ inputs.sarif-path }}
+        INPUT_CLI_VERSION: ${{ inputs.cli-version }}
+        INPUT_CLI_BINARY: ${{ inputs.cli-binary }}
+        INPUT_RELEASE_REPO: ${{ inputs.release-repo }}
+        INPUT_THREADS: ${{ inputs.threads }}
+      run: bash "${ACTION_PATH}/scripts/github-action/run.sh"
