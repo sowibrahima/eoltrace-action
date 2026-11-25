@@ -53,7 +53,9 @@ inputs:
     required: false
     default: ""
   cli-version:
-    description: Release tag to download (e.g. cli-v1.1.0).
+    description: >-
+      Release tag to download (e.g. cli-v1.1.0), or "source" to build from the
+      action checkout when testing an unreleased branch.
     required: false
     default: "cli-v1.1.0"
   cli-binary:
@@ -68,6 +70,17 @@ inputs:
     description: Scanner worker threads (1-64).
     required: false
     default: "4"
+  comment-on-pr:
+    description: >-
+      Post or update a single deduplicated summary comment on pull requests
+      (requires pull-requests: write permission).
+    required: false
+    default: "false"
+  github-token:
+    description: >-
+      GitHub token used when comment-on-pr is true (defaults to github.token).
+    required: false
+    default: ${{ github.token }}
 
 outputs:
   manifest-path:
@@ -112,4 +125,6 @@ runs:
         INPUT_CLI_BINARY: ${{ inputs.cli-binary }}
         INPUT_RELEASE_REPO: ${{ inputs.release-repo }}
         INPUT_THREADS: ${{ inputs.threads }}
+        INPUT_COMMENT_ON_PR: ${{ inputs.comment-on-pr }}
+        GH_TOKEN: ${{ inputs.github-token }}
       run: bash "${ACTION_PATH}/scripts/github-action/run.sh"

@@ -168,3 +168,41 @@ if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
     echo "_Customer source code stayed inside the GitHub Actions runner; only metadata was emitted to the inspectable manifest._"
   } >> "$GITHUB_STEP_SUMMARY"
 fi
+
+if [ "${INPUT_COMMENT_ON_PR:-false}" = "true" ]; then
+  PR_BODY_FILE="${INPUT_PR_COMMENT_OUT:-${TMP_BASE}/eoltrace-pr-comment.md}"
+  {
+    echo "<!-- eoltrace-pr-comment -->"
+    echo "### EOLTrace Scan Summary"
+    echo ""
+    echo "| Field | Value |"
+    echo "| --- | --- |"
+    echo "| Mode | \`${INPUT_MODE}\` |"
+    echo "| Coverage state | \`${COVERAGE_STATE}\` |"
+    echo "| Observations | ${OBS_COUNT} |"
+    echo "| Inventory dependencies | ${DEP_COUNT} |"
+    echo "| Coverage gaps | ${GAP_COUNT} |"
+    if [ -n "$SCAN_ID" ]; then
+      echo "| Hosted scan ID | \`${SCAN_ID}\` |"
+    fi
+    echo ""
+    echo "_Source code stayed inside the GitHub Actions runner; only metadata was emitted._"
+  } > "$PR_BODY_FILE"
+
+  if [ -z "${INPUT_PR_COMMENT_OUT:-}" ] && [ -n "${GITHUB_REPOSITORY:-}" ] && [ -n "${GITHUB_EVENT_PATH:-}" ] && [ -f "${GITHUB_EVENT_PATH:-}" ]; then
+    PR_NUMBER="$(jq -r '.pull_request.number // ""' "$GITHUB_EVENT_PATH")"
+    if [ -n "$PR_NUMBER" ] && command -v gh >/dev/null 2>&1; then
+      EXISTING_ID="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+        --jq '[.[] | select(.body | contains("<!-- eoltrace-pr-comment -->"))][0].id // ""' 2>/dev/null || true)"
+      if [ -n "$EXISTING_ID" ]; then
+        gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_ID}" \
+          -F "body=@${PR_BODY_FILE}" >/dev/null 2>&1 \
+          || echo "WARN: could not update PR comment (check pull-requests: write permission)" >&2
+      else
+        gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+          -F "body=@${PR_BODY_FILE}" >/dev/null 2>&1 \
+          || echo "WARN: could not create PR comment (check pull-requests: write permission)" >&2
+      fi
+    fi
+  fi
+fi
